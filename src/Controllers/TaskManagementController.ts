@@ -9,6 +9,18 @@ class TaskManagementController implements ITaskManagementController {
   constructor() {
     this._taskManagementService = new TaskManagementService();
   }
+  updateTaskBoard = async (request: Request, response: Response) => {
+    const { boardId } = request.params;
+    if (!boardId) {
+      response.status(400).send("Invalid Request. Missing TaskBoardId.");
+    }
+    try {
+    } catch (error) {
+      console.error("UpdateTaskError: " + error);
+      throw error;
+    }
+  };
+
   deleteTaskBoard = async (request: Request, response: Response) => {
     const { boardId } = request.params;
     if (!boardId) {
@@ -105,12 +117,29 @@ class TaskManagementController implements ITaskManagementController {
     }
   };
 
+  getTaskById = async (request: Request, response: Response) => {
+    const { taskId } = request.params;
+    if (!request.params || !taskId) {
+      response.status(400).send({ message: "Invalid Request: Missing taskId" });
+      return;
+    }
+    try {
+      const task = await this._taskManagementService.getTaskById(taskId);
+      response.status(200).send(task);
+    } catch (error) {
+      response
+        .status(500)
+        .send({ message: "Internal Server Error", error: error });
+    }
+  };
+
   addTask = async (request: Request, response: Response) => {
     const { boardId } = request.params;
     if (!request.body || !request.body.task) {
-      return response
+      response
         .status(400)
         .send({ message: "Missing required task request information" });
+      return;
     }
     const { task } = request.body;
     try {
@@ -126,13 +155,39 @@ class TaskManagementController implements ITaskManagementController {
       );
       taskToAdd.id = updatedTask.toString();
 
-      return response.status(201).send(taskToAdd);
+      response.status(201).send(taskToAdd);
     } catch (error) {
       console.error(error);
-      return response.status(500).send({
+      response.status(500).send({
         message: "Failed to create the Task",
         error: JSON.stringify(error),
       });
+    }
+  };
+  updateTask = async (request: Request, response: Response) => {
+    const { taskId } = request.params;
+    if (!request.params || !request.params.taskId) {
+      response.status(400).send("Invalid Request. Missing taskId");
+      return;
+    }
+
+    if (!request.body) {
+      response
+        .status(400)
+        .send(
+          "Invalid Request. Missing required [title,description,subtasks,column]"
+        );
+      return;
+    }
+
+    const { title, description, subtasks, column } = request.body;
+    try {
+      const taskToUpdate = new TaskDto(title, description, column, subtasks);
+      await this._taskManagementService.updateTask(taskId, taskToUpdate);
+      response.status(200).send("Updated Successfully");
+    } catch (error) {
+      console.error("UpdateTaskError: " + error);
+      response.status(500).send({ message: "UpdateTaskError", error: error });
     }
   };
 }

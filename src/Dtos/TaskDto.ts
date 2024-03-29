@@ -37,7 +37,7 @@ export class TaskDto {
     title: string,
     description: string,
     column: string,
-    subtasks = []
+    subtasks:SubtaskDto[] = []
   ) {
     this.id = "",
     this.title = title;

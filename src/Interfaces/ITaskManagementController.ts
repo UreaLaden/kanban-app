@@ -6,10 +6,10 @@ export interface ITaskManagementController {
   getTaskBoard: (request: Request, response: Response) => Promise<void>;
   deleteTaskBoard: (request: Request, response: Response) => Promise<void>;
   addTaskBoard: (request: Request, response: Response) => Promise<void>;
+  updateTaskBoard: (request: Request, response: Response) => Promise<void>;
   getTasks: (request: Request, response: Response) => Promise<void>;
-  addTask: (
-    request: Request,
-    response: Response
-  ) => Promise<Response<any, Record<string, any>>>;
+  getTaskById: (request: Request, response: Response) => Promise<void>;
+  addTask: (request: Request, response: Response) => Promise<void>;
   deleteTask: (request: Request, response: Response) => Promise<void>;
+  updateTask: (request: Request, response: Response) => Promise<void>;
 }

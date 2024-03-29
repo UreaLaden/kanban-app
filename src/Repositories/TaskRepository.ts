@@ -6,7 +6,7 @@ import { Subtask, Task } from "../Models/Task";
 import { Column } from "../Models/Column";
 import { TaskDto } from "../Dtos/TaskDto";
 import { SubtaskDto } from "../Dtos/SubtaskDto";
-import { ISubtask } from "../Interfaces/ISubtask";
+import { ISubtask, SubtaskMap } from "../Interfaces/ISubtask";
 import mongoose from "mongoose";
 import { IColumn } from "../Interfaces/IColumn";
 
@@ -79,10 +79,14 @@ class TaskManagementRepository implements ITaskManagementRepository {
         updatedColumns.push(...newColumn);
       }
 
-      return (await TaskBoard.findByIdAndUpdate(boardId, {
-        name: boardName,
-        columns: updatedColumns,
-      })) as ITaskBoard;
+      return (await TaskBoard.findByIdAndUpdate(
+        boardId,
+        {
+          name: boardName,
+          columns: updatedColumns,
+        },
+        { new: true }
+      )) as ITaskBoard;
     } catch (error) {
       console.error("Unable to update the TaskBoard with id " + boardId);
       throw error;
@@ -326,6 +330,31 @@ class TaskManagementRepository implements ITaskManagementRepository {
     }
   };
 
+  getAllSubtasks = async (task: ITask): Promise<SubtaskDto[]> => {
+    try {
+      const subtasks = await Subtask.find({ task: task._id });
+      if (!subtasks) {
+        throw new Error("Unable to find any subtasks for the provided task");
+      }
+      const subtaskDtos: SubtaskDto[] = [];
+
+      for (const subtask of subtasks) {
+        subtaskDtos.push(
+          new SubtaskDto(
+            subtask._id.toString(),
+            subtask.title,
+            subtask.isCompleted,
+            task._id
+          )
+        );
+      }
+      return subtaskDtos;
+    } catch (error) {
+      console.error("GetSubtaskError " + error);
+      throw error;
+    }
+  };
+
   /**
    * Add a new Task
    * @param boardId - Board to be queried
@@ -382,6 +411,24 @@ class TaskManagementRepository implements ITaskManagementRepository {
   };
 
   /**
+   * Retrieves a task by Id
+   * @param taskId Task to be queried
+   * @returns
+   */
+  getTask = async (taskId: string): Promise<ITask> => {
+    try {
+      const dbTaskId = new mongoose.Types.ObjectId(taskId);
+      const task: ITask = (await Task.findById(dbTaskId).lean()) as ITask;
+      if (!task) {
+        throw new Error("Unable to locate task with id: " + taskId);
+      }
+      return task;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
    *Update the given task based on the provided TaskDto
    * @param {string} taskId - The Task to be updated
    * @param {TaskDto} updatedTask - The xpected Task
@@ -410,13 +457,17 @@ class TaskManagementRepository implements ITaskManagementRepository {
         subtasksToAdd.push(newSubtask._id);
       }
 
-      await Task.findByIdAndUpdate(taskId, {
-        name: updatedTask.title,
-        description: updatedTask.description,
-        status: updatedTask.status,
-        column: updatedTask.column,
-        subtasks: [...currentSubtasks, ...subtasksToAdd],
-      });
+      await Task.findByIdAndUpdate(
+        taskId,
+        {
+          name: updatedTask.title,
+          description: updatedTask.description,
+          status: updatedTask.status,
+          column: updatedTask.column,
+          subtasks: [...currentSubtasks, ...subtasksToAdd],
+        },
+        { new: true }
+      );
     } catch (error) {
       console.error("Failed to update the provided Task");
       throw error;
@@ -497,6 +548,24 @@ class TaskManagementRepository implements ITaskManagementRepository {
       return newSubtask._id;
     } catch (error) {
       console.error("Unable to Update the subtask");
+      throw error;
+    }
+  };
+
+  getSubtask = async (
+    subtaskId: mongoose.Types.ObjectId
+  ): Promise<ISubtask> => {
+    try {
+      const dbSubtaskId = new mongoose.Types.ObjectId(subtaskId);
+      const subtask: ISubtask = (await Subtask.findById(
+        dbSubtaskId
+      ).lean()) as ISubtask;
+      if (!subtask) {
+        throw new Error("Unable to locate subtask with id" + subtaskId);
+      }
+      return subtask;
+    } catch (error) {
+      console.error("GetSubtaskError " + error);
       throw error;
     }
   };

@@ -6,6 +6,7 @@ import { ITaskManagementService } from "../Interfaces/ITaskManagementService";
 import { ITaskManagementRepository } from "../Interfaces/ITaskRepository";
 import TaskManagementRepository from "../Repositories/TaskRepository";
 import TaskboardDto from "../Dtos/TaskboardDto";
+import { SubtaskDto } from "../Dtos/SubtaskDto";
 
 class TaskManagementService implements ITaskManagementService {
   private _taskManagementRepository: ITaskManagementRepository;
@@ -56,7 +57,24 @@ class TaskManagementService implements ITaskManagementService {
     }
   };
 
-  updateBoard = (boardId: string, board: ITaskBoard) => {};
+  updateBoard = async (
+    boardId: string,
+    boardName: string,
+    columnNames: string[]
+  ) => {
+    try {
+      const dbBoardId = new mongoose.Types.ObjectId(boardId);
+      const updatedBoard = await this._taskManagementRepository.updateBoard(
+        dbBoardId,
+        boardName,
+        columnNames
+      );
+      return updatedBoard;
+    } catch (error) {
+      console.log("UpdateTaskBoardError: " + error);
+      throw error;
+    }
+  };
 
   getTasks = async (boardId: string): Promise<TaskDto[] | Error> => {
     try {
@@ -64,6 +82,32 @@ class TaskManagementService implements ITaskManagementService {
       return tasks;
     } catch (error) {
       throw new Error("Unable to query the db");
+    }
+  };
+
+  getTaskById = async (taskId: string): Promise<TaskDto> => {
+    try {
+      const task = await this._taskManagementRepository.getTask(taskId);
+      if (!task) {
+        throw new Error("Unable to locate Task with Id: " + taskId);
+      }
+      const subtasks = await this._taskManagementRepository.getAllSubtasks(
+        task
+      );
+      if (!subtasks) {
+        throw new Error("Unable to find any subtasks for the provided task");
+      }
+      const taskDto = new TaskDto(
+        task.title,
+        task.description ?? "",
+        task.column.toString(),
+        subtasks
+      );
+      taskDto.id = task._id;
+      return taskDto;
+    } catch (error) {
+      console.error("RetrieveTaskError " + error);
+      throw error;
     }
   };
 
@@ -88,6 +132,42 @@ class TaskManagementService implements ITaskManagementService {
     }
   };
 
-  updateTask = (taskId: string, task: ITask) => {};
+  updateTask = async (taskId: string, task: TaskDto) => {
+    try {
+      const dbTask = await this._taskManagementRepository.getTask(taskId);
+      if (!dbTask) {
+        throw new Error("Unable to locate task with Id: " + taskId);
+      }
+      const providedSubtaskIds = task.subtasks.map(subtask => subtask.id);
+      const subtasks: SubtaskDto[] = [];
+      for (const subtaskId of providedSubtaskIds) {
+        const subtask = new mongoose.Types.ObjectId(subtaskId);
+        const dbSubtask = await this._taskManagementRepository.getSubtask(
+          subtask
+        );
+        if (!dbSubtask) {
+          throw new Error("Unable to locate subtask with Id: " + subtask);
+        }
+        const newSubtaskDto: SubtaskDto = new SubtaskDto(
+          dbSubtask._id.toString(),
+          dbSubtask.title,
+          dbSubtask.isCompleted,
+          dbTask._id
+        );
+        subtasks.push(newSubtaskDto);
+      }
+
+      const newTaskDto = new TaskDto(
+        task.title,
+        task.description ?? "",
+        task.column,
+        subtasks
+      );
+      await this._taskManagementRepository.updateTask(dbTask._id, newTaskDto);
+    } catch (error) {
+      console.log("UpdateTaskBoardError: " + error);
+      throw error;
+    }
+  };
 }
 export default TaskManagementService;
