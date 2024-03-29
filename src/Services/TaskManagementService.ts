@@ -5,6 +5,7 @@ import { ITaskBoard } from "../Interfaces/ITaskBoard";
 import { ITaskManagementService } from "../Interfaces/ITaskManagementService";
 import { ITaskManagementRepository } from "../Interfaces/ITaskRepository";
 import TaskManagementRepository from "../Repositories/TaskRepository";
+import TaskboardDto from "../Dtos/TaskboardDto";
 
 class TaskManagementService implements ITaskManagementService {
   private _taskManagementRepository: ITaskManagementRepository;
@@ -29,8 +30,22 @@ class TaskManagementService implements ITaskManagementService {
       throw new Error("Unable to query the db");
     }
   };
-  
-  addBoard = (board: ITaskBoard) => {};
+
+  addBoard = async (
+    boardName: string,
+    columnNames: string[]
+  ): Promise<TaskboardDto> => {
+    try {
+      const newBoard: ITaskBoard =
+        await this._taskManagementRepository.addBoard(boardName, columnNames);
+      const boardDto = new TaskboardDto(boardName, newBoard.columns);
+      boardDto.id = newBoard._id;
+      return boardDto;
+    } catch (error) {
+      console.error("Internal Server Error");
+      throw error;
+    }
+  };
 
   deleteBoard = async (boardId: string) => {
     try {
@@ -42,7 +57,7 @@ class TaskManagementService implements ITaskManagementService {
   };
 
   updateBoard = (boardId: string, board: ITaskBoard) => {};
-  
+
   getTasks = async (boardId: string): Promise<TaskDto[] | Error> => {
     try {
       const tasks = await this._taskManagementRepository.getAllTasks(boardId);
@@ -74,7 +89,5 @@ class TaskManagementService implements ITaskManagementService {
   };
 
   updateTask = (taskId: string, task: ITask) => {};
-
-  
 }
 export default TaskManagementService;

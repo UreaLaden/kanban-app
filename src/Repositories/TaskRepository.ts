@@ -12,10 +12,57 @@ import mongoose from "mongoose";
 class TaskManagementRepository implements ITaskManagementRepository {
   constructor() {}
 
-  addBoard = async (): Promise<mongoose.Types.ObjectId> => {
+  addBoard = async (
+    boardName: string,
+    columnNames: string[]
+  ): Promise<ITaskBoard> => {
     try {
-      return await Promise.resolve(new mongoose.Types.ObjectId());
+      const newBoard = await TaskBoard.create({ name: boardName, columns: [] });
+      const columnIds = await this.addColumn(newBoard._id, columnNames);
+      const board = (await TaskBoard.findByIdAndUpdate(
+        newBoard._id,
+        { $push: { columns: columnIds } },
+        { new: true }
+      )) as ITaskBoard;
+      if (!board) {
+        throw new Error("Invalid Board Id");
+      }
+      return board;
     } catch (error) {
+      throw error;
+    }
+  };
+
+  addColumn = async (
+    boardId: mongoose.Types.ObjectId,
+    columnNames: string | string[]
+  ): Promise<mongoose.Types.ObjectId[]> => {
+    try {
+      if (!columnNames) {
+        throw new Error("Missing Column Names!");
+      }
+      const newColumns: mongoose.Types.ObjectId[] = [];
+      if (Array.isArray(columnNames)) {
+        for (const _name of columnNames) {
+          const column = await Column.create({
+            name: _name,
+            tasks: [],
+            taskBoard: boardId,
+          });
+          newColumns.push(column._id);
+        }
+        return newColumns.map((column) => column._id);
+      } else {
+        const newColumn = await Column.create({
+          name: columnNames,
+          task: [],
+          taskBoard: boardId,
+        });
+        newColumns.push(newColumn._id);
+      }
+      return newColumns;
+    } catch (error) {
+      console.error("There was an issue adding the new column");
       throw error;
     }
   };
@@ -66,13 +113,6 @@ class TaskManagementRepository implements ITaskManagementRepository {
       await Task.findByIdAndDelete(taskId);
     } catch (error) {
       console.error("Error deleting task:", error);
-      throw error;
-    }
-  };
-  addColumn = async (boardId: string): Promise<mongoose.Types.ObjectId> => {
-    try {
-      return await Promise.resolve(new mongoose.Types.ObjectId());
-    } catch (error) {
       throw error;
     }
   };

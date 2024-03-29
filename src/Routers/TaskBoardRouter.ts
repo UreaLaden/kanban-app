@@ -24,16 +24,16 @@ class TaskBoardRouter {
     this._router.get("/", async (req, res) => {
       this._taskManagementController.getTaskBoards(req, res);
     });
-
-    // Add a new Task Board
-    this._router.post("/", async (req,res) => {
-      this._taskManagementController.getTaskBoard(req,res);
-    })
-
+    
     //Get Board By Id
     this._router.get("/:boardId", async (req, res) => {
       this._taskManagementController.getTaskBoard(req, res);
     });
+
+    // Add a new Task Board
+    this._router.post("/", async (req,res) => {
+      this._taskManagementController.addTaskBoard(req,res);
+    })
 
     // Delete a Task Board
     this._router.delete("/board/:boardId", async (req,res) => {
@@ -50,6 +50,7 @@ class TaskBoardRouter {
       this._taskManagementController.addTask(req, res);
     });
 
+    // Delete a Task
     this._router.delete("/task/:taskId", async (req,res) => {
       this._taskManagementController.deleteTask(req,res);
     })

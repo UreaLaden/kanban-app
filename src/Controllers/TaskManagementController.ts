@@ -73,6 +73,26 @@ class TaskManagementController implements ITaskManagementController {
     }
   };
 
+  addTaskBoard = async (request: Request, response: Response) => {
+    try {
+      if (!request.body) {
+        response.status(400).send({
+          message: "Missing required Board name or list of Column Names",
+        });
+        return;
+      }
+      const { name, columns } = request.body;
+      const newBoard = await this._taskManagementService.addBoard(
+        name,
+        columns
+      );
+      response.status(201).send(newBoard);
+    } catch (error) {
+      console.error("There was an issue creating the board");
+      throw error;
+    }
+  };
+
   getTasks = async (request: Request, response: Response) => {
     try {
       const { boardId } = request.params;
