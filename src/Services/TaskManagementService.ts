@@ -17,7 +17,6 @@ class TaskManagementService implements ITaskManagementService {
   getBoard = async (boardId: string): Promise<TaskboardDto | null | Error> => {
     try {
       const board = await this._taskManagementRepository.getBoard(boardId);
-      console.log(JSON.stringify(board));
       return board;
     } catch (error) {
       throw new Error("Unable to query the DB");
@@ -37,7 +36,9 @@ class TaskManagementService implements ITaskManagementService {
         const columns = await this._taskManagementRepository.getAllColumns(
           board._id.toString()
         );
-        boardDtos.push(new TaskboardDto(board.name, columns));
+        const updatedBoard = new TaskboardDto(board.name, columns);
+        updatedBoard.id = board._id;
+        boardDtos.push(updatedBoard);
       }
 
       return boardDtos;

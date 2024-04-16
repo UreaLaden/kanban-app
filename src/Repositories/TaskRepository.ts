@@ -359,8 +359,9 @@ class TaskManagementRepository implements ITaskManagementRepository {
         throw new Error(`Unable to locate a board with id: ${boardId}`);
       }
       const columns = await this.getAllColumns(boardId);
-      console.log(columns);
-      return new TaskboardDto(board.name, columns);
+      const boardDto =  new TaskboardDto(board.name, columns);
+      boardDto.id = board._id;
+      return boardDto;
     } catch (error) {
       console.error("Unable to parse the DB");
       throw error;
