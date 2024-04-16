@@ -14,19 +14,33 @@ class TaskManagementService implements ITaskManagementService {
   constructor() {
     this._taskManagementRepository = new TaskManagementRepository();
   }
-  getBoard = async (boardId: string): Promise<ITaskBoard | null | Error> => {
+  getBoard = async (boardId: string): Promise<TaskboardDto | null | Error> => {
     try {
       const board = await this._taskManagementRepository.getBoard(boardId);
+      console.log(JSON.stringify(board));
       return board;
     } catch (error) {
       throw new Error("Unable to query the DB");
     }
   };
 
-  getBoards = async (): Promise<Error | ITaskBoard[]> => {
+  getBoards = async (): Promise<TaskboardDto[]> => {
     try {
-      const boards = await this._taskManagementRepository.getAllBoards();
-      return boards;
+      const boards =
+        (await this._taskManagementRepository.getAllBoards()) as ITaskBoard[];
+      if (!boards) {
+        return [];
+      }
+      const boardDtos: TaskboardDto[] = [];
+
+      for (const board of boards) {
+        const columns = await this._taskManagementRepository.getAllColumns(
+          board._id.toString()
+        );
+        boardDtos.push(new TaskboardDto(board.name, columns));
+      }
+
+      return boardDtos;
     } catch (error) {
       throw new Error("Unable to query the db");
     }
@@ -39,7 +53,12 @@ class TaskManagementService implements ITaskManagementService {
     try {
       const newBoard: ITaskBoard =
         await this._taskManagementRepository.addBoard(boardName, columnNames);
-      const boardDto = new TaskboardDto(boardName, newBoard.columns);
+
+      const columns = await this._taskManagementRepository.getAllColumns(
+        newBoard.id
+      );
+      console.log(columns);
+      const boardDto = new TaskboardDto(boardName, columns);
       boardDto.id = newBoard._id;
       return boardDto;
     } catch (error) {
@@ -138,7 +157,7 @@ class TaskManagementService implements ITaskManagementService {
       if (!dbTask) {
         throw new Error("Unable to locate task with Id: " + taskId);
       }
-      const providedSubtaskIds = task.subtasks.map(subtask => subtask.id);
+      const providedSubtaskIds = task.subtasks.map((subtask) => subtask.id);
       const subtasks: SubtaskDto[] = [];
       for (const subtaskId of providedSubtaskIds) {
         const subtask = new mongoose.Types.ObjectId(subtaskId);

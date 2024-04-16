@@ -6,10 +6,11 @@ import TaskboardDto from "../Dtos/TaskboardDto";
 import { IColumn } from "./IColumn";
 import { ITask } from "./ITask";
 import { ISubtask } from "./ISubtask";
+import { ColumnDto } from "../Dtos/ColumnDto";
 
 export interface ITaskManagementRepository {
   getAllBoards: () => Promise<ITaskBoard[]> | Error;
-  getBoard: (boardId: string) => Promise<ITaskBoard | null | Error>;
+  getBoard: (boardId: string) => Promise<TaskboardDto | null | Error>;
   addBoard: (boardName: string, columns: string[]) => Promise<ITaskBoard>;
   updateBoard: (
     boardId: mongoose.Types.ObjectId,
@@ -27,7 +28,9 @@ export interface ITaskManagementRepository {
   addColumn: (
     boardId: mongoose.Types.ObjectId,
     columnName: string | string[]
-  ) => Promise<mongoose.Types.ObjectId[]>;
+  ) => Promise<ColumnDto[]>;
+  getColumn: (columnId: string) => Promise<ColumnDto> | Error;
+  getAllColumns: (taskboardId: string) => Promise<ColumnDto[]>;
   deleteColumn: (columnId: mongoose.Types.ObjectId) => Promise<void>;
   updateColumn: (
     columnId: mongoose.Types.ObjectId,

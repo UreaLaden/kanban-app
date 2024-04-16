@@ -5,8 +5,8 @@ import { ITaskBoard } from "./ITaskBoard";
 import TaskboardDto from "../Dtos/TaskboardDto";
 
 export interface ITaskManagementService {
-  getBoards: () => Promise<ITaskBoard[] | Error>;
-  getBoard: (boardId: string) => Promise<ITaskBoard | null | Error>;
+  getBoards: () => Promise<TaskboardDto[] | Error>;
+  getBoard: (boardId: string) => Promise<TaskboardDto | null | Error>;
   getTasks: (boardId: string) => Promise<TaskDto[] | Error>;
   addTask: (boardId: string, task: TaskDto) => Promise<mongoose.Types.ObjectId>;
   addBoard: (

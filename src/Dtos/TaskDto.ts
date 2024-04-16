@@ -6,7 +6,6 @@ import {
   IsMongoId,
   IsArray,
 } from "class-validator";
-import { ISubtask } from "../Interfaces/ISubtask";
 import { SubtaskDto } from "./SubtaskDto";
 
 export class TaskDto {

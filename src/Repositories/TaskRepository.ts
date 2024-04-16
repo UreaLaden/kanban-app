@@ -7,8 +7,11 @@ import { Column } from "../Models/Column";
 import { TaskDto } from "../Dtos/TaskDto";
 import { SubtaskDto } from "../Dtos/SubtaskDto";
 import { ISubtask, SubtaskMap } from "../Interfaces/ISubtask";
-import mongoose from "mongoose";
+import mongoose, { mongo } from "mongoose";
 import { IColumn } from "../Interfaces/IColumn";
+import { buildSubtaskMap } from "../Utilities/helpers";
+import { ColumnDto } from "../Dtos/ColumnDto";
+import TaskboardDto from "../Dtos/TaskboardDto";
 
 class TaskManagementRepository implements ITaskManagementRepository {
   constructor() {}
@@ -76,7 +79,7 @@ class TaskManagementRepository implements ITaskManagementRepository {
 
       for (const column of columnsToAdd) {
         const newColumn = await this.addColumn(boardToUpdate._id, column);
-        updatedColumns.push(...newColumn);
+        updatedColumns.push(...newColumn.map(c => new mongoose.Types.ObjectId(c.id)));
       }
 
       return (await TaskBoard.findByIdAndUpdate(
@@ -96,17 +99,18 @@ class TaskManagementRepository implements ITaskManagementRepository {
    * Adds a new Column to a given board
    * @param {mongoose.Types.ObjectId} boardId - The Id for the TaskBoard Model
    * @param {string[]} columnNames - Array of Names for the new column(s)
-   * @returns {Promise<mongoose.Types.ObjectId[]>}
+   * @returns {Promise<ColumnDto[]>}
    */
   addColumn = async (
     boardId: mongoose.Types.ObjectId,
     columnNames: string | string[]
-  ): Promise<mongoose.Types.ObjectId[]> => {
+  ): Promise<ColumnDto[]> => {
     try {
       if (!columnNames) {
         throw new Error("Missing Column Names!");
       }
-      const newColumns: mongoose.Types.ObjectId[] = [];
+      const newColumns: ColumnDto[] = [];
+      let updatedColumn: ColumnDto;
       if (Array.isArray(columnNames)) {
         for (const _name of columnNames) {
           const column = await Column.create({
@@ -114,16 +118,28 @@ class TaskManagementRepository implements ITaskManagementRepository {
             tasks: [],
             taskBoard: boardId,
           });
-          newColumns.push(column._id);
+          updatedColumn = new ColumnDto(
+            _name,
+            [],
+            boardId.toString()
+          );
+          updatedColumn.id = column._id.toString();
+          newColumns.push(updatedColumn);
         }
-        return newColumns.map((column) => column._id);
+        return newColumns;
       } else {
         const newColumn = await Column.create({
           name: columnNames,
           task: [],
           taskBoard: boardId,
         });
-        newColumns.push(newColumn._id);
+        updatedColumn = new ColumnDto(
+          columnNames,
+          [],
+          boardId.toString()
+        );
+        updatedColumn.id = newColumn._id.toString();
+        newColumns.push(updatedColumn);
       }
       return newColumns;
     } catch (error) {
@@ -132,6 +148,43 @@ class TaskManagementRepository implements ITaskManagementRepository {
     }
   };
 
+  getColumn = async (columnId: string) => {
+    try {
+      const column = (await Column.findById(columnId)) as IColumn;
+      if (!column) {
+        throw new Error(`Unable to locate a column with id: ${columnId}`);
+      }
+      const tasks = (await Task.find({ column: column._id })) as ITask[];
+      const subtasks = (await Subtask.find({
+        task: { $in: tasks.map((t) => t._id) },
+      })) as ISubtask[];
+
+      const subtaskMap: SubtaskMap = buildSubtaskMap(subtasks);
+
+      const tasksDto = tasks.map((task) => {
+        const updatedTask = new TaskDto(
+          task.title,
+          task.description || "",
+          task.column.toString()
+        );
+
+        const subtasks = subtaskMap[task._id.toString()];
+        updatedTask.id = task._id;
+        updatedTask.subtasks = subtasks;
+        return updatedTask;
+      });
+
+      const columnDto = new ColumnDto(
+        column.name,
+        tasksDto,
+        column.taskBoard.toString()
+      );
+      columnDto.id = column._id.toString();
+      return columnDto;
+    } catch (error) {
+      throw error;
+    }
+  };
   /**
    * Deletes the provide column and associated tasks, and subtasks
    * @param columnId
@@ -273,29 +326,7 @@ class TaskManagementRepository implements ITaskManagementRepository {
         task: { $in: tasks.map((t) => t._id) },
       })) as ISubtask[];
 
-      interface SubtaskMap {
-        [key: string]: SubtaskDto[];
-      }
-      const subtaskMap: SubtaskMap = subtasks.reduce(
-        (acc: SubtaskMap, subtask) => {
-          if (!subtask.task) return acc;
-          const taskId: string = subtask.task.toString();
-          if (!acc[taskId]) {
-            acc[taskId] = [];
-          }
-          acc[taskId].push(
-            new SubtaskDto(
-              subtask._id.toString(),
-              subtask.title,
-              subtask.isCompleted,
-              taskId
-            )
-          );
-
-          return acc;
-        },
-        {}
-      );
+      const subtaskMap: SubtaskMap = buildSubtaskMap(subtasks);
 
       const tasksDto = tasks.map((task) => {
         const updatedTask = new TaskDto(
@@ -321,13 +352,38 @@ class TaskManagementRepository implements ITaskManagementRepository {
    * @param boardId - Board to be queried
    * @returns {Promise<ITaskBoard | null | Error>}
    */
-  getBoard = (boardId: string): Promise<ITaskBoard | null | Error> => {
+  getBoard = async (boardId: string): Promise<TaskboardDto | null | Error> => {
     try {
-      return TaskBoard.findOne({ _id: boardId });
+      const board = (await TaskBoard.findOne({ _id: boardId })) as ITaskBoard;
+      if (!board) {
+        throw new Error(`Unable to locate a board with id: ${boardId}`);
+      }
+      const columns = await this.getAllColumns(boardId);
+      console.log(columns);
+      return new TaskboardDto(board.name, columns);
     } catch (error) {
       console.error("Unable to parse the DB");
       throw error;
     }
+  };
+
+  getAllColumns = async (taskboardId: string): Promise<ColumnDto[]> => {
+    const columns = await Column.find({ taskBoard: taskboardId });
+    const columnDtoPromises = columns.map(async (c) => {
+      try {
+        const columnDto = await this.getColumn(c._id.toString());
+        return columnDto;
+      } catch (error) {
+        console.error(`Failed to fetch column DTO for column with Id: ${c.id}`);
+        return null;
+      }
+    });
+    const columnDtos = await Promise.all(columnDtoPromises);
+    const filteredColumnDtos = columnDtos.filter(
+      (dto) => dto !== null
+    ) as ColumnDto[];
+
+    return filteredColumnDtos;
   };
 
   getAllSubtasks = async (task: ITask): Promise<SubtaskDto[]> => {

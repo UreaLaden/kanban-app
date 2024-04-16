@@ -4,6 +4,7 @@ import {
   IsArray,
 } from "class-validator";
 import mongoose from "mongoose";
+import { ColumnDto } from "./ColumnDto";
 
 class TaskboardDto {
   @IsString()
@@ -14,9 +15,9 @@ class TaskboardDto {
 
   @IsArray()
   @IsMongoId({ each: true })
-  columns: mongoose.Types.ObjectId[];
+  columns: ColumnDto[];
 
-  constructor(name: string, columns: mongoose.Types.ObjectId[] = []) {
+  constructor(name: string, columns: ColumnDto[] = []) {
     this.id = "";
     this.name = name;
     this.columns = columns;
